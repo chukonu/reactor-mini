@@ -4,9 +4,11 @@ import { EmitResult } from "./Sinks";
 interface Sink<T> {
   asFlux(): Flux<T>;
 
-  emitComplete(): void;
+  currentSubscriberCount(): number;
 
-  emitError(err: unknown): void;
+  emitComplete(): EmitResult;
+
+  emitError(err: unknown): EmitResult;
 
   emitNext(value: T): EmitResult;
 }

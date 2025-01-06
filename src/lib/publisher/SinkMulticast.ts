@@ -13,7 +13,11 @@ class SinkMulticast<T> extends Flux<T> implements Sink<T> {
     return this;
   }
 
-  subscribe(s?: Subscriber<T>): Disposer {
+  currentSubscriberCount(): number {
+    return this.subscriptions.length;
+  }
+
+  override subscribe(s?: Subscriber<T>): Disposer {
     if (s == null) {
       s = new UnboundedSubscriber();
     }
@@ -42,9 +46,13 @@ class SinkMulticast<T> extends Flux<T> implements Sink<T> {
     return EmitResult.OK;
   }
 
-  emitComplete(): void {}
+  emitComplete(): EmitResult {
+    return EmitResult.OK;
+  }
 
-  emitError(err: unknown): void {}
+  emitError(err: unknown): EmitResult {
+    return EmitResult.OK;
+  }
 }
 
 class InnerSubscription<T> implements Subscription {
