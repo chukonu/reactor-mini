@@ -15,7 +15,7 @@ class SinkMulticastReplay<T> extends Flux<T> implements Sink<T>, Subscriber<T> {
   private readonly subscriptions: ReplaySubscription<T>[] = [];
   private upstream?: Subscription;
 
-  constructor(private readonly buffer: ReplayBuffer<T>) {
+  constructor(private readonly _buffer: ReplayBuffer<T>) {
     super();
   }
 
@@ -23,8 +23,16 @@ class SinkMulticastReplay<T> extends Flux<T> implements Sink<T>, Subscriber<T> {
     return this;
   }
 
+  buffer(): ReplayBuffer<T> {
+    return this._buffer;
+  }
+
   currentSubscriberCount(): number {
     return this.subscriptions.length;
+  }
+
+  remove(s: ReplaySubscription<T>): void {
+    this.subscriptions.splice(this.subscriptions.indexOf(s), 1);
   }
 
   override subscribe(s?: Subscriber<T>): Disposer {
@@ -35,7 +43,7 @@ class SinkMulticastReplay<T> extends Flux<T> implements Sink<T>, Subscriber<T> {
     const subscription = new SinkMulticastReplay.InnerSubscription<T>(
       0,
       s,
-      this.buffer
+      this
     );
     this.subscriptions.push(subscription);
 
@@ -49,32 +57,32 @@ class SinkMulticastReplay<T> extends Flux<T> implements Sink<T>, Subscriber<T> {
   }
 
   emitComplete(): EmitResult {
-    if (this.buffer.isDone()) {
+    if (this._buffer.isDone()) {
       return EmitResult.FAIL_TERMINATED;
     }
-    this.buffer.onComplete();
+    this._buffer.onComplete();
     const oldSubs = this.subscriptions.splice(0);
     for (const s of oldSubs) {
-      this.buffer.replay(s);
+      this._buffer.replay(s);
     }
     return EmitResult.OK;
   }
 
   emitError(err: unknown): EmitResult {
-    if (this.buffer.isDone()) {
+    if (this._buffer.isDone()) {
       return EmitResult.FAIL_TERMINATED;
     }
-    this.buffer.onError(err);
+    this._buffer.onError(err);
     for (const s of this.subscriptions) {
-      this.buffer.replay(s);
+      this._buffer.replay(s);
     }
     return EmitResult.OK;
   }
 
   emitNext(value: T): EmitResult {
-    this.buffer.add(value);
+    this._buffer.add(value);
     for (const s of this.subscriptions) {
-      this.buffer.replay(s);
+      this._buffer.replay(s);
     }
     return EmitResult.OK;
   }
@@ -102,21 +110,26 @@ namespace SinkMulticastReplay {
   }
 
   export class InnerSubscription<T> implements ReplaySubscription<T> {
-    private cancelled: boolean = false;
     private _index: number = 0;
+    private readonly buffer: ReplayBuffer<T>;
 
     constructor(
       private _requested: number = Infinity,
       private readonly _subscriber: Subscriber<T>,
-      private readonly buffer: ReplayBuffer<T>
-    ) {}
+      private readonly host: SinkMulticastReplay<T>
+    ) {
+      this.buffer = host.buffer();
+    }
 
     subscriber(): Subscriber<T> {
       return this._subscriber;
     }
 
     cancel(): void {
-      this.cancelled = true;
+      if (this._requested >= 0) {
+        this._requested = -1;
+        this.host.remove(this);
+      }
     }
 
     index(): number {
@@ -124,7 +137,7 @@ namespace SinkMulticastReplay {
     }
 
     isCancelled(): boolean {
-      return this.cancelled;
+      return this._requested < 0;
     }
 
     request(n: number): void {

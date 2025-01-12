@@ -17,6 +17,10 @@ class AssertSubscriber<T> implements Subscriber<T> {
     this.subscription!.request(demand);
   }
 
+  cancel(): void {
+    this.subscription?.cancel();
+  }
+
   onSubscribe(s: Subscription): void {
     this.subscription = s;
     s.request(this.demand);
@@ -111,6 +115,12 @@ class AssertSubscriber<T> implements Subscriber<T> {
       }
     }
     return this;
+  }
+}
+
+namespace AssertSubscriber {
+  export function create<T>(demand: number = Infinity): AssertSubscriber<T> {
+    return new AssertSubscriber(demand);
   }
 }
 

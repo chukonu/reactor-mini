@@ -41,4 +41,15 @@ describe("SinkMulticastReplay", () => {
 
     subscriber.assertValues(1, 2, 3).assertNoError().assertComplete();
   });
+
+  test("cancel", () => {
+    const sink: SinkMulticastReplay<number> = SinkMulticastReplay.create(16);
+    const subscriber = AssertSubscriber.create<number>();
+
+    sink.subscribe(subscriber);
+
+    subscriber.cancel();
+
+    expect(sink.currentSubscriberCount()).toEqual(0);
+  });
 });

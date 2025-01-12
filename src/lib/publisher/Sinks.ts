@@ -1,7 +1,7 @@
 import Sink from "./Sink";
 import SinkMulticast from "./SinkMulticast";
 
-export function sinkLatestOrDefault<T>(value?: T): Sink<T> {
+export function latestOrDefault<T>(value?: T): Sink<T> {
   return new SinkMulticast();
 }
 
